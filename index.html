@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Mis Préstamos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+  
+  .header { background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); padding: 20px 16px 0; border-bottom: 1px solid #1e293b; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-icon { font-size: 28px; }
+  .header-title { font-weight: 700; font-size: 18px; color: #f1f5f9; }
+  .header-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .tabs { display: flex; }
+  .tab { flex: 1; padding: 10px 0; background: none; border: none; cursor: pointer; font-size: 14px; transition: all 0.2s; border-bottom: 2px solid transparent; }
+  .tab.active { color: #38bdf8; border-bottom: 2px solid #38bdf8; font-weight: 700; }
+  .tab.inactive { color: #64748b; }
+
+  .btn-export { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #22c55e; color: #0f172a; border: none; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .btn-export:hover { background: #16a34a; }
+
+  .content { padding: 16px; max-width: 480px; margin: 0 auto; }
+
+  .empty { text-align: center; padding: 60px 20px; color: #475569; }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-title { font-size: 16px; font-weight: 600; }
+  .empty-sub { font-size: 13px; margin-top: 6px; }
+
+  .card { background: #1e293b; border-radius: 14px; padding: 16px; cursor: pointer; border: 1.5px solid #334155; transition: border 0.2s; margin-bottom: 12px; }
+  .card.selected { border-color: #38bdf8; }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .card-name { font-weight: 700; font-size: 16px; color: #f1f5f9; }
+  .card-meta { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .card-saldo { color: #f87171; font-weight: 700; font-size: 15px; text-align: right; }
+  .card-saldo.pagado { color: #22c55e; }
+  .card-saldo-label { font-size: 11px; color: #64748b; }
+  .progress-row { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 4px; margin-top: 12px; }
+  .progress-bar { background: #0f172a; border-radius: 99px; height: 6px; }
+  .progress-fill { background: #38bdf8; height: 6px; border-radius: 99px; transition: width 0.4s; }
+
+  .cuotas-container { margin-top: 16px; border-top: 1px solid #334155; padding-top: 14px; }
+  .cuotas-header { font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 10px; }
+  .cuota-card { background: #0f172a; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .cuota-top { display: flex; justify-content: space-between; align-items: center; }
+  .cuota-title { font-weight: 600; font-size: 13px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+  .cuota-saldo { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+  .cuota-saldo b { color: #f1f5f9; }
+  .pago-item { font-size: 11px; color: #64748b; display: flex; justify-content: space-between; margin-top: 3px; }
+  .btn-pago { margin-top: 8px; width: 100%; padding: 7px 0; background: #38bdf8; color: #0f172a; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+
+  .form-section { display: flex; flex-direction: column; gap: 14px; }
+  .form-label { font-size: 13px; color: #94a3b8; display: block; margin-bottom: 5px; }
+  .form-input { width: 100%; padding: 11px 12px; background: #1e293b; border: 1.5px solid #334155; border-radius: 10px; color: #f1f5f9; font-size: 14px; outline: none; }
+  .form-input.error { border-color: #f87171; }
+  .form-error { font-size: 11px; color: #f87171; margin-top: 3px; }
+  .tipo-row { display: flex; gap: 8px; }
+  .tipo-btn { flex: 1; padding: 10px 0; border-radius: 10px; border: 1.5px solid #334155; background: #1e293b; color: #64748b; cursor: pointer; font-size: 14px; }
+  .tipo-btn.active { border-color: #38bdf8; background: rgba(56,189,248,0.13); color: #38bdf8; font-weight: 700; }
+  .preview { background: #1e293b; border-radius: 12px; padding: 14px; border: 1px solid #334155; }
+  .preview-title { font-size: 13px; color: #64748b; margin-bottom: 6px; }
+  .preview-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .preview-row.total { font-size: 14px; font-weight: 700; }
+  .btn-guardar { padding: 14px 0; background: linear-gradient(135deg, #0ea5e9, #38bdf8); color: #0f172a; border: none; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; width: 100%; margin-top: 4px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; z-index: 100; }
+  .modal { background: #1e293b; width: 100%; max-width: 480px; margin: 0 auto; border-radius: 20px 20px 0 0; padding: 24px; }
+  .modal-title { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+  .modal-sub { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+  .btn-cancel { flex: 1; padding: 12px 0; background: #334155; color: #94a3b8; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+  .btn-confirm { flex: 2; padding: 12px 0; background: #38bdf8; color: #0f172a; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; }
+
+  .section-title { font-size: 15px; font-weight: 700; color: #94a3b8; margin-bottom: 4px; }
+
+  .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #22c55e; color: #0f172a; padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: 14px; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="header-left">
+      <div class="header-icon">💰</div>
+      <div>
+        <div class="header-title">Mis Préstamos</div>
+        <div class="header-sub" id="headerSub">0 préstamos activos</div>
+      </div>
+    </div>
+    <button class="btn-export" onclick="exportarExcel()">📊 Exportar Excel</button>
+  </div>
+  <div class="tabs">
+    <button class="tab active" id="tab0" onclick="switchTab(0)">Préstamos</button>
+    <button class="tab inactive" id="tab1" onclick="switchTab(1)">Nuevo préstamo</button>
+  </div>
+</div>
+
+<div class="content">
+  <!-- TAB 0 -->
+  <div id="tabContent0">
+    <div id="listaVacia" class="empty">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">Sin préstamos aún</div>
+      <div class="empty-sub">Toca "Nuevo préstamo" para empezar</div>
+    </div>
+    <div id="listaPrestamos"></div>
+  </div>
+
+  <!-- TAB 1 -->
+  <div id="tabContent1" style="display:none">
+    <div class="form-section">
+      <div class="section-title">Datos del préstamo</div>
+      <div>
+        <label class="form-label">Nombre del deudor</label>
+        <input class="form-input" id="fNombre" type="text" placeholder="Ej: María López">
+        <div class="form-error" id="eNombre"></div>
+      </div>
+      <div>
+        <label class="form-label">Monto prestado ($)</label>
+        <input class="form-input" id="fMonto" type="number" placeholder="Ej: 500000">
+        <div class="form-error" id="eMonto"></div>
+      </div>
+      <div>
+        <label class="form-label">Interés total (%)</label>
+        <input class="form-input" id="fInteres" type="number" placeholder="Ej: 10">
+        <div class="form-error" id="eInteres"></div>
+      </div>
+      <div>
+        <label class="form-label">Número de cuotas</label>
+        <input class="form-input" id="fCuotas" type="number" placeholder="Ej: 4">
+        <div class="form-error" id="eCuotas"></div>
+      </div>
+      <div>
+        <label class="form-label">Tipo de cuota</label>
+        <div class="tipo-row">
+          <button class="tipo-btn active" id="tipoSemanal" onclick="setTipo('semanal')">📆 Semanal</button>
+          <button class="tipo-btn" id="tipoMensual" onclick="setTipo('mensual')">📅 Mensual</button>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Fecha del préstamo</label>
+        <input class="form-input" id="fFecha" type="date">
+      </div>
+      <div class="preview" id="preview" style="display:none">
+        <div class="preview-title">Vista previa</div>
+        <div class="preview-row"><span style="color:#94a3b8">Interés total</span><span id="pvInteres" style="color:#f59e0b"></span></div>
+        <div class="preview-row"><span style="color:#94a3b8">Total a cobrar</span><span id="pvTotal" style="color:#38bdf8"></span></div>
+        <div class="preview-row total"><span style="color:#94a3b8">Valor por cuota</span><span id="pvCuota" style="color:#f1f5f9"></span></div>
+      </div>
+      <button class="btn-guardar" onclick="guardarPrestamo()">Guardar préstamo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal pago -->
+<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="cerrarModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Registrar pago</div>
+    <div class="modal-sub" id="modalSub"></div>
+    <label class="form-label">Monto pagado ($)</label>
+    <input class="form-input" id="mMonto" type="number" placeholder="Ingresa el monto" style="margin-bottom:12px">
+    <label class="form-label">Fecha del pago</label>
+    <input class="form-input" id="mFecha" type="date" style="margin-bottom:12px">
+    <label class="form-label">Nota (opcional)</label>
+    <input class="form-input" id="mNota" type="text" placeholder="Ej: Abono parcial..." style="margin-bottom:0">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-confirm" onclick="confirmarPago()">Confirmar pago</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ Excel descargado</div>
+
+<script>
+  let prestamos = JSON.parse(localStorage.getItem('prestamos') || '[]');
+  let selectedId = null;
+  let currentTab = 0;
+  let tipoActual = 'semanal';
+  let pagoActual = null;
+
+  const fmt = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0);
+  const today = () => new Date().toISOString().split('T')[0];
+
+  document.getElementById('fFecha').value = today();
+  document.getElementById('mFecha').value = today();
+
+  function guardar() {
+    localStorage.setItem('prestamos', JSON.stringify(prestamos));
+  }
+
+  function switchTab(i) {
+    currentTab = i;
+    document.getElementById('tabContent0').style.display = i === 0 ? 'block' : 'none';
+    document.getElementById('tabContent1').style.display = i === 1 ? 'block' : 'none';
+    document.getElementById('tab0').className = 'tab ' + (i === 0 ? 'active' : 'inactive');
+    document.getElementById('tab1').className = 'tab ' + (i === 1 ? 'active' : 'inactive');
+    if (i === 0) renderLista();
+  }
+
+  function setTipo(t) {
+    tipoActual = t;
+    document.getElementById('tipoSemanal').className = 'tipo-btn' + (t === 'semanal' ? ' active' : '');
+    document.getElementById('tipoMensual').className = 'tipo-btn' + (t === 'mensual' ? ' active' : '');
+  }
+
+  ['fMonto','fInteres','fCuotas'].forEach(id => {
+    document.getElementById(id).addEventListener('input', actualizarPreview);
+  });
+
+  function actualizarPreview() {
+    const m = Number(document.getElementById('fMonto').value);
+    const i = Number(document.getElementById('fInteres').value);
+    const c = Number(document.getElementById('fCuotas').value);
+    if (m > 0 && i >= 0 && c > 0) {
+      const interes = m * (i / 100);
+      const total = m + interes;
+      const cuota = Math.ceil(total / c);
+      document.getElementById('pvInteres').textContent = fmt(interes);
+      document.getElementById('pvTotal').textContent = fmt(total);
+      document.getElementById('pvCuota').textContent = fmt(cuota);
+      document.getElementById('preview').style.display = 'block';
+    } else {
+      document.getElementById('preview').style.display = 'none';
+    }
+  }
+
+  function guardarPrestamo() {
+    const nombre = document.getElementById('fNombre').value.trim();
+    const monto = Number(document.getElementById('fMonto').value);
+    const interes = Number(document.getElementById('fInteres').value);
+    const numCuotas = Number(document.getElementById('fCuotas').value);
+    const fecha = document.getElementById('fFecha').value;
+    let ok = true;
+    if (!nombre) { document.getElementById('eNombre').textContent = 'Ingresa el nombre'; ok = false; } else document.getElementById('eNombre').textContent = '';
+    if (!monto || monto <= 0) { document.getElementById('eMonto').textContent = 'Monto inválido'; ok = false; } else document.getElementById('eMonto').textContent = '';
+    if (isNaN(interes) || interes < 0) { document.getElementById('eInteres').textContent = 'Interés inválido'; ok = false; } else document.getElementById('eInteres').textContent = '';
+    if (!numCuotas || numCuotas < 1) { document.getElementById('eCuotas').textContent = 'Número inválido'; ok = false; } else document.getElementById('eCuotas').textContent = '';
+    if (!ok) return;
+    const interesVal = monto * (interes / 100);
+    const total = monto + interesVal;
+    const valorCuota = Math.ceil(total / numCuotas);
+    const cuotas = Array.from({ length: numCuotas }, (_, i) => ({
+      id: i + 1, valorEsperado: valorCuota, saldoPendiente: valorCuota, pagos: [], estado: 'pendiente'
+    }));
+    prestamos.unshift({ id: Date.now(), nombre, monto, interes, numCuotas, tipo: tipoActual, fecha, totalConInteres: total, valorCuota, cuotas, saldoTotal: total });
+    guardar();
+    document.getElementById('fNombre').value = '';
+    document.getElementById('fMonto').value = '';
+    document.getElementById('fInteres').value = '';
+    document.getElementById('fCuotas').value = '';
+    document.getElementById('fFecha').value = today();
+    document.getElementById('preview').style.display = 'none';
+    switchTab(0);
+  }
+
+  function renderLista() {
+    const lista = document.getElementById('listaPrestamos');
+    const vacia = document.getElementById('listaVacia');
+    const sub = document.getElementById('headerSub');
+    sub.textContent = prestamos.length + ' préstamo' + (prestamos.length !== 1 ? 's' : '') + ' activo' + (prestamos.length !== 1 ? 's' : '');
+    if (prestamos.length === 0) { vacia.style.display = 'block'; lista.innerHTML = ''; return; }
+    vacia.style.display = 'none';
+    lista.innerHTML = prestamos.map(p => {
+      const pagadas = p.cuotas.filter(c => c.estado === 'pagado').length;
+      const pct = Math.round((pagadas / p.numCuotas) * 100);
+      const isSelected = selectedId === p.id;
+      const saldoClass = p.saldoTotal <= 0 ? 'card-saldo pagado' : 'card-saldo';
+      let cuotasHTML = '';
+      if (isSelected) {
+        cuotasHTML = '<div class="cuotas-container"><div class="cuotas-header">Cuota esperada: ' + fmt(p.valorCuota) + ' · Total: ' + fmt(p.totalConInteres) + '</div>' +
+          p.cuotas.map(c => {
+            const bc = c.estado === 'pagado' ? '#22c55e' : c.estado === 'parcial' ? '#f59e0b' : '#94a3b8';
+            const bl = c.estado === 'pagado' ? '✓ Pagado' : c.estado === 'parcial' ? 'Parcial' : 'Pendiente';
+            const pagosHTML = c.pagos.length > 0 ? '<div style="margin-top:6px">' + c.pagos.map(pg => '<div class="pago-item"><span>✓ ' + pg.fecha + ' — ' + fmt(pg.monto) + '</span>' + (pg.nota ? '<span style="font-style:italic">' + pg.nota + '</span>' : '') + '</div>').join('') + '</div>' : '';
+            const btnPago = c.estado !== 'pagado' ? '<button class="btn-pago" onclick="abrirModal(' + p.id + ',' + c.id + ');event.stopPropagation()">+ Registrar pago</button>' : '';
+            return '<div class="cuota-card"><div class="cuota-top"><div class="cuota-title">Cuota #' + c.id + '</div><span class="badge" style="background:' + bc + '22;color:' + bc + '">' + bl + '</span></div><div class="cuota-saldo">Pendiente: <b>' + fmt(c.saldoPendiente) + '</b></div>' + pagosHTML + btnPago + '</div>';
+          }).join('') + '</div>';
+      }
+      return '<div class="card' + (isSelected ? ' selected' : '') + '" onclick="toggleSelected(' + p.id + ')">' +
+        '<div class="card-top"><div><div class="card-name">' + p.nombre + '</div><div class="card-meta">' + (p.tipo === 'mensual' ? '📅 Mensual' : '📆 Semanal') + ' · ' + p.interes + '% interés</div></div>' +
+        '<div><div class="' + saldoClass + '">' + fmt(p.saldoTotal) + '</div><div class="card-saldo-label">saldo pendiente</div></div></div>' +
+        '<div class="progress-row"><span>' + pagadas + '/' + p.numCuotas + ' cuotas</span><span>' + pct + '%</span></div>' +
+        '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+        cuotasHTML + '</div>';
+    }).join('');
+  }
+
+  function toggleSelected(id) {
+    selectedId = selectedId === id ? null : id;
+    renderLista();
+  }
+
+  function abrirModal(prestamoId, cuotaId) {
+    const p = prestamos.find(x => x.id === prestamoId);
+    const c = p.cuotas.find(x => x.id === cuotaId);
+    pagoActual = { prestamoId, cuotaId };
+    document.getElementById('modalSub').textContent = 'Cuota #' + cuotaId + ' · Pendiente: ' + fmt(c.saldoPendiente);
+    document.getElementById('mMonto').value = '';
+    document.getElementById('mFecha').value = today();
+    document.getElementById('mNota').value = '';
+    document.getElementById('modalOverlay').style.display = 'flex';
+  }
+
+  function cerrarModal() {
+    document.getElementById('modalOverlay').style.display = 'none';
+    pagoActual = null;
+  }
+
+  function confirmarPago() {
+    const montoPago = Number(document.getElementById('mMonto').value);
+    const fecha = document.getElementById('mFecha').value;
+    const nota = document.getElementById('mNota').value;
+    if (!montoPago || montoPago <= 0) return;
+    const p = prestamos.find(x => x.id === pagoActual.prestamoId);
+    let restante = montoPago;
+    p.cuotas = p.cuotas.map(c => {
+      if (c.id !== pagoActual.cuotaId) return c;
+      const abono = Math.min(restante, c.saldoPendiente);
+      restante -= abono;
+      const nuevoSaldo = c.saldoPendiente - abono;
+      return { ...c, saldoPendiente: nuevoSaldo, pagos: [...c.pagos, { fecha, monto: abono, nota }], estado: nuevoSaldo <= 0 ? 'pagado' : 'parcial' };
+    });
+    if (restante > 0) {
+      for (let i = 0; i < p.cuotas.length; i++) {
+        if (p.cuotas[i].estado !== 'pagado' && p.cuotas[i].id !== pagoActual.cuotaId) {
+          const abono = Math.min(restante, p.cuotas[i].saldoPendiente);
+          restante -= abono;
+          const nuevoSaldo = p.cuotas[i].saldoPendiente - abono;
+          p.cuotas[i] = { ...p.cuotas[i], saldoPendiente: nuevoSaldo, pagos: [...p.cuotas[i].pagos, { fecha, monto: abono, nota: 'Abono diferido' }], estado: nuevoSaldo <= 0 ? 'pagado' : 'parcial' };
+          if (restante <= 0) break;
+        }
+      }
+    }
+    p.saldoTotal = p.cuotas.reduce((a, c) => a + c.saldoPendiente, 0);
+    guardar();
+    cerrarModal();
+    renderLista();
+  }
+
+  function exportarExcel() {
+    if (prestamos.length === 0) {
+      mostrarToast('⚠️ No hay préstamos para exportar', '#f59e0b');
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    // Hoja 1: Resumen de préstamos
+    const resumenData = [
+      ['RESUMEN DE PRÉSTAMOS', '', '', '', '', '', ''],
+      ['Exportado el:', new Date().toLocaleDateString('es-CO'), '', '', '', '', ''],
+      [''],
+      ['Deudor', 'Fecha', 'Monto Prestado', 'Interés %', 'Total a Cob
